@@ -1,7 +1,7 @@
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
-
+import { database } from "./database";
 dotenv.config();
 
 const app = express();
@@ -12,11 +12,21 @@ const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:5173";
 app.use(cors({ origin: frontendUrl }));
 app.use(express.json());
 
-app.get("/api/health", (_request, response) => {
-  return response.json({
-    status: "ok",
-    service: "oficina-api",
-  });
+app.get("/api/health", async (_request, response) => {
+  try {
+    await database.query("SELECT 1");
+
+    return response.json({
+      status: "ok",
+      service: "oficina-api",
+      database: "connected",
+    });
+  } catch {
+    return response.status(500).json({
+      status: "error",
+      database: "disconnected",
+    });
+  }
 });
 app.get("/", (_request, response) => {
   return response.json({
