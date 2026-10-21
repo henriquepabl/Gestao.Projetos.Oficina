@@ -1,6 +1,6 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./layouts/AppLayout";
-import { Dashboard } from "./pages/DashBoard";
+import { Dashboard } from "./pages/Dashboard";
 import { EmConstrucao } from "./pages/EmConstrucao";
 
 function App() {
