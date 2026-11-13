@@ -1,6 +1,8 @@
 import cors from "cors";
 import express from "express";
 import { database } from "./database";
+import { loginRoutes } from "./routes/login.routes";
+import { cadastroRoutes } from "./routes/cadastro.routes";
 
 const app = express();
 
@@ -9,6 +11,9 @@ const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:5173";
 
 app.use(cors({ origin: frontendUrl }));
 app.use(express.json());
+
+app.use("/api", loginRoutes);
+app.use("/api", cadastroRoutes);
 
 app.get("/api/health", async (_request, response) => {
   try {
