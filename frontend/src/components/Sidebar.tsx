@@ -1,4 +1,5 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { authSession } from "../services/auth";
 
 const links = [
   { to: "/", label: "Dashboard" },
@@ -9,6 +10,8 @@ const links = [
 ];
 
 export function Sidebar() {
+  const navigate = useNavigate();
+  function logout() { authSession.end(); navigate("/login", { replace: true }); }
   return (
     <aside className="flex min-h-screen w-64 flex-col bg-slate-900 p-5 text-white">
       <h1 className="mb-10 text-2xl font-bold text-blue-400">
@@ -32,6 +35,8 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
+
+      <button type="button" onClick={logout} className="mt-auto rounded-lg px-4 py-3 text-left text-slate-300 transition hover:bg-slate-800 hover:text-white">Sair da conta</button>
     </aside>
   );
 }
