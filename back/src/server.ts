@@ -1,8 +1,16 @@
 import cors from "cors";
 import express from "express";
 import { database } from "./database";
+import { tratarErros } from "./http";
 import { loginRoutes } from "./routes/login.routes";
 import { cadastroRoutes } from "./routes/cadastro.routes";
+import { usuariosRoutes } from "./routes/usuarios.routes";
+import { veiculosRoutes } from "./routes/veiculos.routes";
+import { agendamentosRoutes } from "./routes/agendamentos.routes";
+import { orcamentosRoutes } from "./routes/orcamentos.routes";
+import { estoqueRoutes } from "./routes/estoque.routes";
+import { ordensRoutes } from "./routes/ordens.routes";
+import { relatoriosRoutes } from "./routes/relatorios.routes";
 
 const app = express();
 
@@ -14,6 +22,13 @@ app.use(express.json());
 
 app.use("/api", loginRoutes);
 app.use("/api", cadastroRoutes);
+app.use("/api", usuariosRoutes);
+app.use("/api", veiculosRoutes);
+app.use("/api", agendamentosRoutes);
+app.use("/api", orcamentosRoutes);
+app.use("/api", estoqueRoutes);
+app.use("/api", ordensRoutes);
+app.use("/api", relatoriosRoutes);
 
 app.get("/api/health", async (_request, response) => {
   try {
@@ -36,6 +51,8 @@ app.get("/", (_request, response) => {
     message: "Bem-vindo à API da oficina!",
   });
 });
+
+app.use(tratarErros);
 
 app.listen(port, () => {
   console.log(`API rodando em http://localhost:${port}`);

@@ -1,154 +1,129 @@
 # Oficina+ — Sistema de Gestão Web para Oficina Mecânica
 
-Sistema web para gestão de oficina mecânica, composto por uma interface administrativa (painel da oficina) e uma API REST. O frontend abriga o painel administrativo e o backend expõe os endpoints e a conexão com o banco PostgreSQL.
-
-O projeto está em desenvolvimento: o layout e as rotas já existem, mas a maioria dos módulos ainda não foi implementada.
+Sistema web para oficina mecânica com **portal do cliente** e **painel da oficina** sobre a mesma API REST e o mesmo banco PostgreSQL (Neon). Cobre o fluxo do documento do projeto: cadastro → agendamento → diagnóstico → orçamento → aceite → ordem de serviço → peças → pagamento registrado → histórico e relatórios (RF01–RF10).
 
 ## Stack
 
 | Camada    | Tecnologias                                                                 |
 | --------- | --------------------------------------------------------------------------- |
 | Frontend  | React 19, TypeScript, Vite 8, Tailwind CSS 4, React Router 7, Oxlint        |
-| Backend   | Node.js, Express 5, TypeScript, `pg`, `dotenv`, `cors`, `tsx`               |
-| Banco     | PostgreSQL (compatível com Neon)                                            |
+| Backend   | Node.js, Express 5, TypeScript, `pg`, `bcrypt`, `jsonwebtoken`, `tsx`       |
+| Banco     | PostgreSQL (Neon)                                                           |
+| Testes    | Runner nativo do Node (`node --test`)                                       |
 
-## Estrutura do repositório
+## Perfis
+
+| Perfil (`role`) | O que faz |
+| --- | --- |
+| `client` | Cadastra os próprios veículos, solicita/cancela agendamentos, aprova ou recusa orçamentos, acompanha as próprias OS, consulta se o pagamento foi feito e vê o histórico do veículo. Só enxerga os próprios dados. |
+| `employee` | Tudo do painel: clientes, veículos, agenda, diagnóstico, orçamentos, OS, estoque e registro de pagamentos. |
+| `admin` | Tudo do `employee` + relatórios (RF10) e gestão de usuários (criar funcionário, mudar perfil, ativar/desativar). |
+
+O cliente pode criar a própria conta em `/create-account` ou ser cadastrado no balcão pelo funcionário (com senha inicial, que ele troca em "Meu perfil"). Pagamentos são apenas **registrados** (valor, forma, pago/pendente); o recebimento acontece fora do sistema.
+
+## Estrutura
 
 ```text
-.
-├── back/
-│   ├── src/
-│   │   ├── database.ts        # Pool de conexões PostgreSQL
-│   │   └── server.ts          # Aplicação Express e endpoints
-│   ├── .env.example
-│   ├── package.json
-│   └── tsconfig.json
-├── frontend/
-│   ├── public/
-│   ├── src/
-│   │   ├── components/
-│   │   │   └── Sidebar.tsx
-│   │   ├── layouts/
-│   │   │   └── AppLayout.tsx
-│   │   ├── pages/
-│   │   │   ├── Dashboard.tsx
-│   │   │   └── EmConstrucao.tsx
-│   │   ├── App.tsx
-│   │   ├── index.css
-│   │   └── main.tsx
-│   ├── .env.example
-│   ├── package.json
-│   └── vite.config.ts
-├── docs/                      # Reservado para documentação
-├── GPQS_Proposta_Integrada_Editavel.docx.pdf
-└── README.md
+back/
+  database/migrations/   001 (usuários, veículos, agendamentos) e 002 (diagnóstico, orçamento, OS, estoque, pagamentos)
+  database/migrate.ts    aplica as migrações em ordem (idempotentes)
+  src/
+    middlewares/auth.ts  JWT: autenticar, permitir(...roles), dono()
+    http.ts              validação de entrada e tratamento central de erros
+    regras.ts            regras de negócio puras (transições de status, saldo)
+    routes/ controllers/ services/   um trio por módulo
+  test/                  testes unitários (*.test.ts) e fluxo completo (*.e2e.ts)
+frontend/src/
+  pages/                 uma tela por módulo; a mesma tela muda conforme o perfil
+  components/            Sidebar (menu por perfil) e peças de UI
+  lib/util.ts            formatação e hooks de carregamento
+  services/auth.ts       cliente HTTP com token e sessão
+docs/                    modelo de dados, plano de implementação e status reports
 ```
 
-## Pré-requisitos
-
-- Node.js 20.19+ ou 22.12+ (compatível com o Vite 8)
-- npm
-- PostgreSQL local ou uma instância gerenciada (por exemplo, Neon)
-
 ## Configuração e execução
+
+Pré-requisitos: Node.js 20.19+ ou 22.12+ e um banco PostgreSQL (Neon).
 
 ### Backend
 
 ```bash
 cd back
 npm install
-cp .env.example .env
+cp .env.example .env     # preencha DATABASE_URL e JWT_SECRET
+npm run migrate          # cria/atualiza as tabelas
 npm run dev
 ```
 
-No Windows (Prompt de Comando), use `copy .env.example .env` no lugar de `cp`.
-
-Variáveis de ambiente (`back/.env`):
-
-| Variável       | Padrão                    | Descrição                                                        |
-| -------------- | ------------------------- | ---------------------------------------------------------------- |
-| `PORT`         | `3000`                    | Porta HTTP da API                                                |
-| `FRONTEND_URL` | `http://localhost:5173`   | Origem permitida pelo CORS                                       |
-| `DATABASE_URL` | —                         | String de conexão PostgreSQL; obrigatória para o health check    |
-
-A API sobe em `http://localhost:3000`.
+| Variável       | Padrão                  | Descrição |
+| -------------- | ----------------------- | --------- |
+| `PORT`         | `3000`                  | Porta da API |
+| `FRONTEND_URL` | `http://localhost:5173` | Origem permitida pelo CORS |
+| `DATABASE_URL` | —                       | Conexão PostgreSQL (obrigatória) |
+| `JWT_SECRET`   | —                       | Segredo dos tokens de login (obrigatório; use um valor longo e aleatório, ex.: `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`) |
 
 ### Frontend
 
 ```bash
 cd frontend
 npm install
-cp .env.example .env
+cp .env.example .env     # VITE_API_URL=http://localhost:3000
 npm run dev
 ```
 
-No Windows (Prompt de Comando), use `copy .env.example .env` no lugar de `cp`.
+### Primeiro administrador
 
-Variável de ambiente (`frontend/.env`):
+Crie a conta pela tela de cadastro e promova-a no SQL Editor do Neon:
 
-| Variável       | Padrão                  | Descrição                                              |
-| -------------- | ----------------------- | ------------------------------------------------------ |
-| `VITE_API_URL` | `http://localhost:3000` | URL da API; ainda não consumida pelo frontend          |
+```sql
+UPDATE usuarios SET role = 'admin' WHERE email = 'seu-email@exemplo.com';
+```
 
-O frontend sobe em `http://localhost:5173`.
+Depois disso, o admin cadastra os funcionários pela tela **Usuários**.
 
 ## Scripts
 
-### Backend (`back/`)
-
-| Comando             | Descrição                                      |
-| ------------------- | ---------------------------------------------- |
-| `npm run dev`       | Inicia a API com recarregamento automático     |
-| `npm run typecheck` | Verifica os tipos com TypeScript sem emitir JS |
-
-### Frontend (`frontend/`)
-
-| Comando           | Descrição                                  |
-| ----------------- | ------------------------------------------ |
-| `npm run dev`     | Inicia o servidor de desenvolvimento Vite  |
-| `npm run build`   | Verifica os tipos e gera o build de produção |
-| `npm run lint`    | Executa o Oxlint                           |
-| `npm run preview` | Pré-visualiza o build de produção          |
+| Onde | Comando | Descrição |
+| --- | --- | --- |
+| `back/` | `npm run dev` | API com recarregamento automático |
+| `back/` | `npm run migrate` | Aplica as migrações no `DATABASE_URL` |
+| `back/` | `npm test` | Testes unitários (regras de negócio, validação e permissões do middleware) |
+| `back/` | `npm run test:e2e` | Fluxo completo RF01–RF10 + isolamento entre clientes. Precisa da API rodando (`API_URL`, padrão `http://localhost:3000`); cria dados `e2e-*@teste.local` e apaga no fim |
+| `back/` | `npm run typecheck` | Verificação de tipos |
+| `frontend/` | `npm run build` / `npm run lint` | Build de produção / Oxlint |
 
 ## API
 
-| Método | Rota          | Descrição                                      |
-| ------ | ------------- | ---------------------------------------------- |
-| `GET`  | `/`           | Mensagem de boas-vindas da API                 |
-| `GET`  | `/api/health` | Verifica o serviço e a conexão com o banco     |
+Todas as rotas (exceto login, cadastro e health) exigem `Authorization: Bearer <token>`. "Todos" = qualquer perfil logado; o cliente só recebe os próprios registros.
 
-Exemplo de resposta de `GET /`:
+| Método | Rota | Perfis | RF |
+| --- | --- | --- | --- |
+| POST | `/api/cadastro` · `/api/login` | público | — |
+| GET · PATCH | `/api/me` · `/api/me/senha` | todos | — |
+| GET · POST · GET/PATCH `:id` | `/api/clientes` | equipe | RF01 |
+| GET · POST · PATCH | `/api/usuarios` | admin | — |
+| GET | `/api/equipe` | equipe | — |
+| GET · POST · GET/PATCH `:id` | `/api/veiculos` | todos | RF02 |
+| GET | `/api/veiculos/:id/historico` | todos | RF09 |
+| GET · POST · GET `:id` | `/api/agendamentos` | todos | RF03 |
+| GET | `/api/agendamentos/ocupados?data=` | todos | RF03 |
+| PATCH | `/api/agendamentos/:id/status` | todos (cliente só cancela) | RF03 |
+| POST | `/api/agendamentos/:id/diagnostico` | equipe | RF04 |
+| GET · GET `:id` | `/api/orcamentos` | todos | RF05 |
+| POST · PATCH `:id/cancelar` | `/api/orcamentos` | equipe | RF05 |
+| PATCH | `/api/orcamentos/:id/resposta` | cliente (aprovar abre a OS) | RF05 |
+| GET · GET `:id` | `/api/ordens-servico` | todos | RF06 |
+| PATCH `:id` · POST `:id/pecas` | `/api/ordens-servico` | equipe | RF06/RF07 |
+| GET · POST · PATCH `:id` · GET/POST `:id/movimentacoes` | `/api/pecas` | equipe | RF07 |
+| POST `:id/pagamentos` · PATCH `/api/pagamentos/:id` | `/api/ordens-servico` | equipe | RF08 |
+| GET | `/api/dashboard` | equipe | — |
+| GET | `/api/relatorios?de=&ate=` | admin | RF10 |
+| GET | `/api/health` | público | — |
 
-```json
-{
-  "message": "Bem-vindo à API da oficina!"
-}
-```
+## Regras importantes
 
-Exemplo de resposta de `GET /api/health`:
-
-```json
-{
-  "status": "ok",
-  "service": "oficina-api",
-  "database": "connected"
-}
-```
-
-Se a conexão com o banco falhar, o endpoint retorna HTTP 500 com `{"status":"error","database":"disconnected"}`.
-
-## Rotas do frontend
-
-| Rota               | Tela                        | Status                    |
-| ------------------ | --------------------------- | ------------------------- |
-| `/`                | Dashboard                   | Dados estáticos (mock)    |
-| `/clientes`        | Clientes                    | Em construção             |
-| `/agendamentos`    | Agendamentos                | Em construção             |
-| `/ordens-servico`  | Ordens de serviço           | Em construção             |
-| `/estoque`         | Estoque                     | Em construção             |
-
-## Status e limitações
-
-- O backend expõe apenas os endpoints de boas-vindas e health check; não há autenticação, CRUD ou migrações.
-- O frontend ainda não consome a API; os indicadores do dashboard são estáticos.
-- As telas de Clientes, Agendamentos, Ordens de serviço e Estoque são placeholders.
+- **Isolamento de dados (R06):** rotas de cliente filtram pelo id do token, nunca por id enviado na requisição; o banco também garante (FK composta) que o veículo do agendamento é do mesmo cliente.
+- **Agenda:** a oficina atende até `CAPACIDADE_OFICINA` (3) veículos ao mesmo tempo; confirmar acima disso retorna 409. Ajuste em `back/src/regras.ts`.
+- **Estoque (R10):** movimentação e saldo são gravados na mesma transação; saldo negativo é bloqueado pelo banco. Peça usada na OS é uma saída vinculada à OS.
+- **Status:** transições válidas de agendamento e OS ficam em `back/src/regras.ts` (cobertas por testes).
+- **Sessão:** token JWT de 8 h guardado no `sessionStorage` (fecha ao fechar a aba).
