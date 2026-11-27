@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { loginService } from "../services/login.service";
+import { gerarToken, type Role } from "../middlewares/auth";
 
 export const loginController = {
   async login(request: Request, response: Response) {
@@ -33,6 +34,8 @@ export const loginController = {
       return response.status(200).json({
         status: "ok",
         message: "Login realizado com sucesso.",
+        token: gerarToken({ id: usuario.id, role: usuario.role as Role }),
+        usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, role: usuario.role },
       });
     } catch {
       return response.status(500).json({
